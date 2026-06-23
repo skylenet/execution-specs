@@ -1257,6 +1257,15 @@ class DebugRPC(EthRPC):
         else:
             self.reset_head(block_hash)
 
+    @property
+    def rewind_method(self) -> str | None:
+        """
+        Which head-rewind RPC ``rewind_head`` selected, or ``None`` until
+        the first call probes the client. ``"setHead"`` for geth-style
+        clients, ``"resetHead"`` for the fallback (e.g. Nethermind).
+        """
+        return self._rewind_method
+
 
 class EngineRPC(BaseJwtRPC):
     """

@@ -764,6 +764,19 @@ def _reset_chain_between_tests(
             pytest.exit(
                 f"head rewind failed — subsequent fixtures invalid: {e}"
             )
+        # debug_resetHead (e.g. Nethermind) rewinds the block tree but
+        # leaves the forkchoice/`latest` head pointer where it was, so the
+        # next test would still build on the pre-rewind state. Sync it with
+        # an engine forkchoiceUpdated to the start block. (geth's
+        # debug_setHead moves `latest` itself, so this is resetHead-only.)
+        if debug_rpc.rewind_method == "resetHead":
+            try:
+                client_backend.reset_head_via_forkchoice()
+            except Exception as e:
+                pytest.exit(
+                    "forkchoice sync after debug_resetHead failed — "
+                    f"subsequent fixtures invalid: {e}"
+                )
         # debug_setHead takes only a number, so verify the rewind landed
         # on the expected hash. The forkchoice path targets the hash
         # directly and skips this check.

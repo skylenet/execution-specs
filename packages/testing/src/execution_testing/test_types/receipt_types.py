@@ -55,6 +55,9 @@ class TransactionReceipt(CamelModel):
             # them.
             data.pop("from", None)
             data.pop("to", None)
+            # Nethermind includes a transaction error/revert reason (e.g.
+            # "OutOfGas") on receipts that the fixture schema does not model.
+            data.pop("error", None)
             root = data.get("root")
             root_is_empty = root in (None, "", "0x", b"", bytearray())
             if not root_is_empty:
