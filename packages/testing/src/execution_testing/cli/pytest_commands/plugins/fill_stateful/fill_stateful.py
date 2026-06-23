@@ -131,6 +131,20 @@ def pytest_addoption(parser: pytest.Parser) -> None:
         ),
     )
     group.addoption(
+        "--reset-via-forkchoice",
+        action="store_true",
+        dest="reset_via_forkchoice",
+        default=False,
+        help=(
+            "Experimental — rewind between tests with an engine "
+            "forkchoiceUpdated to the start block instead of "
+            "debug_setHead/debug_resetHead. Each test already builds on "
+            "the start block as parent, so a forkchoice update reorgs the "
+            "head back to it without the debug namespace. No effect under "
+            "--skip-chain-reset."
+        ),
+    )
+    group.addoption(
         "--snapshot-block",
         action="store",
         dest="snapshot_block",
@@ -719,6 +733,9 @@ def _reset_chain_between_tests(
 
     With ``--skip-chain-reset`` the rewind is skipped entirely and each
     test builds on top of the previous test's blocks (experimental).
+    With ``--reset-via-forkchoice`` the rewind is an engine
+    forkchoiceUpdated to the start block instead of a debug call
+    (experimental).
     """
     yield
     if request.config.getoption("skip_chain_reset", default=False):
@@ -731,12 +748,22 @@ def _reset_chain_between_tests(
     current_head = eth_rpc.get_block_by_number("latest")
     if current_head is not None and current_head["hash"] == expected_hash:
         return
-    try:
-        debug_rpc.rewind_head(
-            block_number=start_hex, block_hash=expected_hash
-        )
-    except Exception as e:
-        pytest.exit(f"head rewind failed — subsequent fixtures invalid: {e}")
+    if request.config.getoption("reset_via_forkchoice", default=False):
+        try:
+            client_backend.reset_head_via_forkchoice()
+        except Exception as e:
+            pytest.exit(
+                f"forkchoice reset failed — subsequent fixtures invalid: {e}"
+            )
+    else:
+        try:
+            debug_rpc.rewind_head(
+                block_number=start_hex, block_hash=expected_hash
+            )
+        except Exception as e:
+            pytest.exit(
+                f"head rewind failed — subsequent fixtures invalid: {e}"
+            )
     head = eth_rpc.get_block_by_number("latest")
     if head is None or head["hash"] != expected_hash:
         observed = head["hash"] if head is not None else "<none>"

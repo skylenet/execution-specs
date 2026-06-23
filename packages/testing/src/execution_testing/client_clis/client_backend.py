@@ -209,6 +209,39 @@ class ClientBackend:
             ),
         )
 
+    def reset_head_via_forkchoice(self) -> Hash:
+        """
+        Reorg the canonical head back to ``start_block`` using only the
+        engine API — no ``debug_setHead`` / ``debug_resetHead``.
+
+        Each per-test chain is built with ``start_block`` as the explicit
+        parent (``make_stateful_fixture`` seeds ``block_hashes`` with it),
+        so a ``forkchoiceUpdated`` pointing at ``start_block``'s hash
+        reorgs the head back to it. Returns the head hash reset to.
+
+        Experimental alternative to the debug-namespace rewind; works on
+        any client that speaks the engine API.
+        """
+        assert self.start_block is not None, (
+            "reset_head_via_forkchoice requires a captured start_block"
+        )
+        head_hash = Hash(self.start_block["hash"])
+        start_fork = self.fork.fork_at(
+            block_number=int(self.start_block["number"], 16),
+            timestamp=int(self.start_block["timestamp"], 16),
+        )
+        fcu_version = start_fork.engine_forkchoice_updated_version()
+        assert fcu_version is not None
+        response = self.engine_rpc.forkchoice_updated_with_retry(
+            forkchoice_state=ForkchoiceState(head_block_hash=head_hash),
+            forkchoice_version=fcu_version,
+        )
+        assert response.payload_status.status == PayloadStatusEnum.VALID, (
+            "engine_forkchoiceUpdated reset to start_block was rejected: "
+            f"{response.payload_status.status}"
+        )
+        return head_hash
+
     def _payload_attributes(
         self,
         env: Any,

@@ -123,6 +123,7 @@ Optional:
 - `--output PATH` — default `./fixtures`.
 - `--clean` — wipe the output dir before filling.
 - `--skip-chain-reset` — experimental; do not rewind the head between tests. Each test then builds on top of the previous test's blocks instead of a fixed start block, so fixtures are no longer independent. Useful for experimenting with building on an advancing chain.
+- `--reset-via-forkchoice` — experimental; rewind between tests with an engine `forkchoiceUpdated` to the start block instead of `debug_setHead`/`debug_resetHead`. Each test already builds on the start block as its parent, so a forkchoice update reorgs the head back to it without needing the `debug` namespace. No effect when combined with `--skip-chain-reset`.
 
 ## Output layout
 
@@ -214,7 +215,7 @@ Both backends satisfy `FillerBackend` (`client_clis/filler_backend.py`). `Client
     2. `_split_blocks_by_phase` splits any mixed-phase blocks (e.g. EIP-7702 SETUP + benchmark TEST).
     3. For each block, `ClientBackend.evaluate` builds + finalises it; payload partitioned by `Block.phase` into `setupEngineNewPayloads` vs `engineNewPayloads`.
     4. Write `<test>.json` (a `BlockchainEngineStatefulFixture`).
-3. **Per-test reset** (`_reset_chain_between_tests`): `debug_setHead(start_block.number)` — or `debug_resetHead(start_block.hash)` on clients without `debug_setHead`, e.g. Nethermind — re-fetch `latest`, abort if hash drifted. Skipped entirely under `--skip-chain-reset`.
+3. **Per-test reset** (`_reset_chain_between_tests`): `debug_setHead(start_block.number)` — or `debug_resetHead(start_block.hash)` on clients without `debug_setHead`, e.g. Nethermind — re-fetch `latest`, abort if hash drifted. Skipped entirely under `--skip-chain-reset`; under `--reset-via-forkchoice` an engine `forkchoiceUpdated(start_block.hash)` (`ClientBackend.reset_head_via_forkchoice`) reorgs the head back instead of a debug call.
 
 ### Fixture types
 
