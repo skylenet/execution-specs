@@ -764,13 +764,16 @@ def _reset_chain_between_tests(
             pytest.exit(
                 f"head rewind failed — subsequent fixtures invalid: {e}"
             )
-    head = eth_rpc.get_block_by_number("latest")
-    if head is None or head["hash"] != expected_hash:
-        observed = head["hash"] if head is not None else "<none>"
-        pytest.exit(
-            f"head rewind landed on hash {observed} but expected "
-            f"{expected_hash} (start_block at number {start_hex}). The "
-            "live chain may have reorged out from under fill-stateful; "
-            "rerun against a quiescent client or use --snapshot-block "
-            "with an explicit hash."
-        )
+        # debug_setHead takes only a number, so verify the rewind landed
+        # on the expected hash. The forkchoice path targets the hash
+        # directly and skips this check.
+        head = eth_rpc.get_block_by_number("latest")
+        if head is None or head["hash"] != expected_hash:
+            observed = head["hash"] if head is not None else "<none>"
+            pytest.exit(
+                f"head rewind landed on hash {observed} but expected "
+                f"{expected_hash} (start_block at number {start_hex}). The "
+                "live chain may have reorged out from under fill-stateful; "
+                "rerun against a quiescent client or use --snapshot-block "
+                "with an explicit hash."
+            )
