@@ -122,6 +122,7 @@ Optional:
 - `--default-{gas-price,max-fee-per-gas,max-priority-fee-per-gas,max-fee-per-blob-gas}` — pin per-session fees; defaults bump live-query values by `1.5×`.
 - `--output PATH` — default `./fixtures`.
 - `--clean` — wipe the output dir before filling.
+- `--skip-chain-reset` — experimental; do not rewind the head between tests. Each test then builds on top of the previous test's blocks instead of a fixed start block, so fixtures are no longer independent. Useful for experimenting with building on an advancing chain.
 
 ## Output layout
 
@@ -213,7 +214,7 @@ Both backends satisfy `FillerBackend` (`client_clis/filler_backend.py`). `Client
     2. `_split_blocks_by_phase` splits any mixed-phase blocks (e.g. EIP-7702 SETUP + benchmark TEST).
     3. For each block, `ClientBackend.evaluate` builds + finalises it; payload partitioned by `Block.phase` into `setupEngineNewPayloads` vs `engineNewPayloads`.
     4. Write `<test>.json` (a `BlockchainEngineStatefulFixture`).
-3. **Per-test reset** (`_reset_chain_between_tests`): `debug_setHead(start_block.number)` — or `debug_resetHead(start_block.hash)` on clients without `debug_setHead`, e.g. Nethermind — re-fetch `latest`, abort if hash drifted.
+3. **Per-test reset** (`_reset_chain_between_tests`): `debug_setHead(start_block.number)` — or `debug_resetHead(start_block.hash)` on clients without `debug_setHead`, e.g. Nethermind — re-fetch `latest`, abort if hash drifted. Skipped entirely under `--skip-chain-reset`.
 
 ### Fixture types
 

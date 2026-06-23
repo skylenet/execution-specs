@@ -118,6 +118,19 @@ def pytest_addoption(parser: pytest.Parser) -> None:
         ),
     )
     group.addoption(
+        "--skip-chain-reset",
+        action="store_true",
+        dest="skip_chain_reset",
+        default=False,
+        help=(
+            "Experimental — do not rewind the chain head between tests. "
+            "Without the reset each test builds on top of the previous "
+            "test's blocks instead of a fixed start block, so the produced "
+            "fixtures are no longer independent. Useful for experimenting "
+            "with building blocks on top of an advancing chain."
+        ),
+    )
+    group.addoption(
         "--snapshot-block",
         action="store",
         dest="snapshot_block",
@@ -692,6 +705,7 @@ def t8n(
 
 @pytest.fixture(autouse=True, scope="function")
 def _reset_chain_between_tests(
+    request: pytest.FixtureRequest,
     client_backend: ClientBackend,
     debug_rpc: DebugRPC,
     eth_rpc: "ChainBuilderEthRPC",
@@ -702,8 +716,13 @@ def _reset_chain_between_tests(
     falls back to ``debug_resetHead`` (by hash) for clients like
     Nethermind. After the rewind we re-fetch ``latest`` and fail loudly
     if the hash drifted (e.g. live reorg of a same-numbered block).
+
+    With ``--skip-chain-reset`` the rewind is skipped entirely and each
+    test builds on top of the previous test's blocks (experimental).
     """
     yield
+    if request.config.getoption("skip_chain_reset", default=False):
+        return
     if client_backend.start_block is None:
         return
     start_hex = client_backend.start_block["number"]
