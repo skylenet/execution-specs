@@ -281,24 +281,31 @@ class ClientBackend:
         if not self.extract_opcode_count or self.debug_rpc is None:
             return None
 
-        counts: Dict[str, int] | None = None
         if not self._js_tracer_unsupported:
             counts = self._count_via_js_tracer(block_hash)
-            if counts is None:
-                return None  # RPC error already logged
-            if not counts:
-                logger.info(
-                    "opcode trace: JS tracer returned no opcodes; falling "
-                    "back to struct logs for this client"
-                )
-                self._js_tracer_unsupported = True
+            if counts:
+                return OpcodeCount.model_validate(counts)
+            # None (RPC error, e.g. an unknown JS tracer) or {} (empty): this
+            # client has no usable JS opcode tracer — fall back to struct logs.
+            logger.info(
+                "opcode trace: JS tracer unavailable; falling back to struct "
+                "logs for this client"
+            )
+            self._js_tracer_unsupported = True
 
-        if self._js_tracer_unsupported:
-            counts = self._count_via_struct_logs(block_hash)
-            if counts is None:
-                return None
+        counts = self._count_via_struct_logs(block_hash)
+        if counts is None:
+            return None
+        return OpcodeCount.model_validate(counts)
 
-        return OpcodeCount.model_validate(counts or {})
+    @staticmethod
+    def _trace_debug(msg: str) -> None:
+        """TEMP: append a trace-debug line to /out/.trace-debug.log."""
+        try:
+            with open("/out/.trace-debug.log", "a") as f:
+                f.write(msg + "\n")
+        except Exception:
+            pass
 
     def _count_via_js_tracer(
         self, block_hash: Hash
@@ -314,13 +321,14 @@ class ClientBackend:
                 {"tracer": OPCODE_COUNT_TRACER_JS},
             )
         except Exception as e:
+            self._trace_debug(f"JS raised: {e!r}")
             logger.warning(
                 f"opcode trace failed for block {block_hash}: {e}; "
                 "skipping opcode count for this block"
             )
             return None
-        logger.warning(
-            f"JS-TRACER DEBUG: type={type(traces).__name__} "
+        self._trace_debug(
+            f"JS ok: type={type(traces).__name__} "
             f"first={str((traces or [None])[0])[:400]}"
         )
         counts: Dict[str, int] = {}
@@ -357,14 +365,15 @@ class ClientBackend:
                 },
             )
         except Exception as e:
+            self._trace_debug(f"STRUCT raised: {e!r}")
             logger.warning(
                 f"opcode struct-log trace failed for block {block_hash}: "
                 f"{e}; skipping opcode count for this block"
             )
             return None
-        logger.warning(
-            f"STRUCT-LOG DEBUG: type={type(traces).__name__} "
-            f"first={str((traces or [None])[0])[:500]}"
+        self._trace_debug(
+            f"STRUCT ok: type={type(traces).__name__} "
+            f"first={str((traces or [None])[0])[:700]}"
         )
         counts: Dict[str, int] = {}
         for entry in traces or []:
