@@ -298,15 +298,6 @@ class ClientBackend:
             return None
         return OpcodeCount.model_validate(counts)
 
-    @staticmethod
-    def _trace_debug(msg: str) -> None:
-        """TEMP: append a trace-debug line to /out/.trace-debug.log."""
-        try:
-            with open("/out/.trace-debug.log", "a") as f:
-                f.write(msg + "\n")
-        except Exception:
-            pass
-
     def _count_via_js_tracer(
         self, block_hash: Hash
     ) -> Dict[str, int] | None:
@@ -321,16 +312,10 @@ class ClientBackend:
                 {"tracer": OPCODE_COUNT_TRACER_JS},
             )
         except Exception as e:
-            self._trace_debug(f"JS raised: {e!r}")
-            logger.warning(
-                f"opcode trace failed for block {block_hash}: {e}; "
-                "skipping opcode count for this block"
-            )
+            # Expected for clients without a JS tracer (e.g. besu); the caller
+            # falls back to struct logs.
+            logger.warning(f"opcode JS tracer failed for block {block_hash}: {e}")
             return None
-        self._trace_debug(
-            f"JS ok: type={type(traces).__name__} "
-            f"first={str((traces or [None])[0])[:400]}"
-        )
         counts: Dict[str, int] = {}
         for entry in traces or []:
             if not isinstance(entry, dict):
@@ -365,16 +350,11 @@ class ClientBackend:
                 },
             )
         except Exception as e:
-            self._trace_debug(f"STRUCT raised: {e!r}")
             logger.warning(
                 f"opcode struct-log trace failed for block {block_hash}: "
                 f"{e}; skipping opcode count for this block"
             )
             return None
-        self._trace_debug(
-            f"STRUCT ok: type={type(traces).__name__} "
-            f"first={str((traces or [None])[0])[:700]}"
-        )
         counts: Dict[str, int] = {}
         for entry in traces or []:
             if not isinstance(entry, dict):
