@@ -314,7 +314,9 @@ class ClientBackend:
         except Exception as e:
             # Expected for clients without a JS tracer (e.g. besu); the caller
             # falls back to struct logs.
-            logger.warning(f"opcode JS tracer failed for block {block_hash}: {e}")
+            logger.warning(
+                f"opcode JS tracer failed for block {block_hash}: {e}"
+            )
             return None
         counts: Dict[str, int] = {}
         for entry in traces or []:
