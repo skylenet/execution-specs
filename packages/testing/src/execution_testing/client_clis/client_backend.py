@@ -319,6 +319,10 @@ class ClientBackend:
                 "skipping opcode count for this block"
             )
             return None
+        logger.warning(
+            f"JS-TRACER DEBUG: type={type(traces).__name__} "
+            f"first={str((traces or [None])[0])[:400]}"
+        )
         counts: Dict[str, int] = {}
         for entry in traces or []:
             if not isinstance(entry, dict):
@@ -358,6 +362,10 @@ class ClientBackend:
                 f"{e}; skipping opcode count for this block"
             )
             return None
+        logger.warning(
+            f"STRUCT-LOG DEBUG: type={type(traces).__name__} "
+            f"first={str((traces or [None])[0])[:500]}"
+        )
         counts: Dict[str, int] = {}
         for entry in traces or []:
             if not isinstance(entry, dict):
