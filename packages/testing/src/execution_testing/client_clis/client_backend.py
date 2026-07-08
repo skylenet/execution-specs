@@ -307,6 +307,7 @@ class ClientBackend:
         Count opcodes with the client-side JS tracer, aggregating the
         per-tx ``{opcode: count}`` maps it returns. ``None`` on RPC error.
         """
+        assert self.debug_rpc is not None
         try:
             traces = self.debug_rpc.trace_block_by_hash(
                 str(block_hash),
@@ -341,6 +342,7 @@ class ClientBackend:
         step small (still one entry per executed opcode, so the response is
         large for gas-heavy blocks). ``None`` on RPC error.
         """
+        assert self.debug_rpc is not None
         try:
             traces = self.debug_rpc.trace_block_by_hash(
                 str(block_hash),
