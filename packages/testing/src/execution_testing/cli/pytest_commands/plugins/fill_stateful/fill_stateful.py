@@ -147,6 +147,19 @@ def pytest_addoption(parser: pytest.Parser) -> None:
             "opt-in."
         ),
     )
+    group.addoption(
+        "--skip-debug-rewind",
+        action="store_true",
+        dest="skip_debug_rewind",
+        default=False,
+        help=(
+            "Do not rewind the chain head between tests via debug_setHead / "
+            "debug_resetHead. Each test's first block is built on its "
+            "explicit start_block parent, so the client reorgs onto it "
+            "without a debug rewind. Use for clients that lack the debug "
+            "head-rewind methods or where those methods misbehave."
+        ),
+    )
 
 
 def _resolve_session_fork(
@@ -497,6 +510,12 @@ def extract_opcode_count(request: pytest.FixtureRequest) -> bool:
 
 
 @pytest.fixture(scope="session")
+def skip_debug_rewind(request: pytest.FixtureRequest) -> bool:
+    """Whether --skip-debug-rewind disables the between-test head rewind."""
+    return request.config.getoption("skip_debug_rewind")
+
+
+@pytest.fixture(scope="session")
 def client_backend(
     eth_rpc: ChainBuilderEthRPC,
     debug_rpc: DebugRPC,
@@ -759,6 +778,7 @@ def _reset_chain_between_tests(
     client_backend: ClientBackend,
     debug_rpc: DebugRPC,
     eth_rpc: "ChainBuilderEthRPC",
+    skip_debug_rewind: bool,
 ) -> Generator[None, None, None]:
     """
     Rewind to start_block after each test so the chain is identical for
@@ -768,8 +788,14 @@ def _reset_chain_between_tests(
     so the client reorgs onto it even without a debug rewind. Afterwards we
     verify the block at the start_block number matches and fail loudly if it
     drifted (e.g. a live reorg).
+
+    With ``--skip-debug-rewind`` the debug rewind (and its verification) is
+    skipped entirely, relying on the explicit-parent build to reorg the
+    client onto each test's start_block.
     """
     yield
+    if skip_debug_rewind:
+        return
     if client_backend.start_block is None:
         return
     start_hex = client_backend.start_block["number"]
