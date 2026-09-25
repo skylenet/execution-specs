@@ -93,7 +93,18 @@ def test_jumpdest_analysis(
         full = pattern.code(initcode_size)
         code_prepare_initcode = Bytecode()
         for offset in range(0, initcode_size, chunk):
-            source = pre.deploy_contract(code=full[offset : offset + chunk])
+            # Wrap in Bytecode: fill-stateful's execute pre-alloc backend
+            # asserts isinstance(code, Bytecode) and rejects plain bytes,
+            # unlike the filler backend that takes any BytesConvertible.
+            # The bytes only ever sit in the account as runtime code, so the
+            # stack accounting is irrelevant.
+            source = pre.deploy_contract(
+                code=Bytecode(
+                    full[offset : offset + chunk],
+                    popped_stack_items=0,
+                    pushed_stack_items=0,
+                )
+            )
             code_prepare_initcode += Op.EXTCODECOPY(
                 address=source, dest_offset=offset, size=chunk
             )
