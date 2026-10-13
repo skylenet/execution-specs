@@ -251,7 +251,16 @@ class ChainBuilderEthRPC(BaseEthRPC, namespace="eth"):
         next_fork = self._next_fork(head_block)
         next_slot_number: int | None = None
         if next_fork.engine_payload_attribute_slot_number():
-            if not self._head_fork(head_block).header_slot_number_required():
+            # A genesis written on an earlier fork, with the slot number fork
+            # scheduled after it, has no slot number although `self.fork`
+            # resolves block 0 to that fork. The next block is then the first
+            # one to carry a slot number, the same as a pre-fork head.
+            pre_fork_genesis = (
+                int(HexNumber(head_block["number"])) == 0
+                and "slotNumber" not in head_block
+            )
+            head_fork = self._head_fork(head_block)
+            if pre_fork_genesis or not head_fork.header_slot_number_required():
                 next_slot_number = 1
             else:
                 assert "slotNumber" in head_block, (
