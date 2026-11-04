@@ -40,7 +40,7 @@ def test_ether_transfers_gas_used_minus_one(
     transfer_cost = fork.transaction_intrinsic_cost_calculator()(
         sends_value=True,
         recipient_type=RecipientType.EOA,
-    ) + fork.transaction_top_frame_execution_gas(
+    ) + fork.transaction_top_frame_gas_calculator()(
         sends_value=True,
         recipient_type=RecipientType.EOA,
     )
