@@ -414,6 +414,22 @@ class Block(Header):
     expected_gas_used: int | None = None
     """Expected gas used for the block."""
 
+    def engine_payload_only_overrides(self) -> List[str]:
+        """
+        Return the names of the settings that only reach the engine payload.
+
+        An RLP block cannot carry them, so a fixture that delivers blocks as
+        RLP would present a valid block while claiming the exception they
+        are meant to cause. Ported from the upstream base of
+        ethereum/execution-specs#3823 for its invalid-block check.
+        """
+        overrides: List[str] = []
+        if self.engine_new_payload_block_access_list is not None:
+            overrides.append("engine_new_payload_block_access_list")
+        if self.engine_new_payload_slot_number is not None:
+            overrides.append("engine_new_payload_slot_number")
+        return overrides
+
     @property
     def phase(self) -> TestPhase | None:
         """
@@ -939,7 +955,9 @@ def check_stateful_invalid_block(block: Block) -> None:
         reasons.append(f"it sets {payload_only}")
     if (
         block.expected_block_access_list is not None
-        and block.expected_block_access_list.has_modifier
+        # This base keeps the modifier of ``.modify()`` in ``_modifier``.
+        and getattr(block.expected_block_access_list, "_modifier", None)
+        is not None
     ):
         reasons.append("it modifies the block access list")
     if block.phase == TestPhase.SETUP:
